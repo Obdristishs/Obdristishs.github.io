@@ -84,7 +84,7 @@
 
     .card-stack {
       margin-top: 80px;
-      padding: 20px 0;
+      padding: 20px 0 150px 0;
       height: calc(100vh - 80px);
       overflow-y: auto;
       scroll-behavior: smooth;
@@ -95,6 +95,10 @@
       flex-direction: column;
       align-items: center;
       gap: 0;
+    }
+
+    .card:last-child {
+      margin-bottom: 0;
     }
 
     .card {
@@ -306,19 +310,31 @@
         card.style.pointerEvents = 'none';
         card.classList.add('is-active-original');
 
-        // Create a clone for the smooth transition
+        // Target position
+        const targetWidth = window.innerWidth * 0.9;
+        const targetMaxWidth = 400;
+        const finalWidth = targetWidth > targetMaxWidth ? targetMaxWidth : targetWidth;
+        const targetLeft = (window.innerWidth - finalWidth) / 2;
+        
+        // Calculate natural height for full size display
+        const imgEl = card.querySelector('img');
+        const imgRatio = imgEl.naturalWidth ? (imgEl.naturalHeight / imgEl.naturalWidth) : (1 / 1.58);
+        const targetHeight = Math.min(finalWidth * imgRatio, window.innerHeight * 0.85);
+
+        // Create a clone for the smooth transition (FLIP via GPU)
         const clone = card.cloneNode(true);
         clone.classList.add('clone-card');
         clone.classList.remove('is-active-original');
         clone.style.position = 'fixed';
-        clone.style.top = `${rect.top}px`;
-        clone.style.left = `${rect.left}px`;
-        clone.style.width = `${rect.width}px`;
-        clone.style.height = `${rect.height}px`;
+        clone.style.top = '0px';
+        clone.style.left = '0px';
+        clone.style.width = `${finalWidth}px`; // Fix width instantly to target width (matches rect.width usually)
+        clone.style.height = `${rect.height}px`; // Start at cropped height
+        clone.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
         clone.style.margin = '0';
         clone.style.zIndex = '1000';
         clone.style.opacity = '1';
-        clone.style.transition = 'all 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
+        clone.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), height 0.5s cubic-bezier(0.32, 0.72, 0, 1), box-shadow 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
         clone.style.boxShadow = '0 10px 40px rgba(0,0,0,0.6)';
         
         document.body.appendChild(clone);
@@ -340,22 +356,9 @@
         // Trigger reflow to start animation
         clone.offsetHeight;
 
-        // Target position
-        const targetWidth = window.innerWidth * 0.9;
-        const targetMaxWidth = 400;
-        const finalWidth = targetWidth > targetMaxWidth ? targetMaxWidth : targetWidth;
-        const targetLeft = (window.innerWidth - finalWidth) / 2;
-        
-        // Calculate natural height for full size display
-        const imgEl = clone.querySelector('img');
-        const imgRatio = imgEl.naturalWidth ? (imgEl.naturalHeight / imgEl.naturalWidth) : (1 / 1.58);
-        const targetHeight = Math.min(finalWidth * imgRatio, window.innerHeight * 0.85);
-
-        clone.style.top = '90px';
-        clone.style.left = `${targetLeft}px`;
-        clone.style.width = `${finalWidth}px`;
+        // Animate to target
+        clone.style.transform = `translate3d(${targetLeft}px, 90px, 0) scale(1.02)`;
         clone.style.height = `${targetHeight}px`;
-        clone.style.transform = 'scale(1.02)';
 
         document.getElementById('done-btn').classList.add('visible');
         document.querySelector('header').classList.add('header-hidden');
@@ -451,11 +454,8 @@
         const rect = original.getBoundingClientRect();
         
         // Animate back to original position
-        clone.style.top = `${rect.top}px`;
-        clone.style.left = `${rect.left}px`;
-        clone.style.width = `${rect.width}px`;
+        clone.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0) scale(1)`;
         clone.style.height = `${rect.height}px`;
-        clone.style.transform = 'scale(1)';
         clone.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
 
         // Bring other cards back
