@@ -181,6 +181,9 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      background: rgba(255, 0, 0, 0.5); /* DEBUG BACKGROUND */
+      border-radius: 12px;
+      min-height: 50px;
     }
 
     .nfc-container.visible {
@@ -190,16 +193,13 @@
     .nfc-container video {
       width: 100%;
       height: auto;
-      mix-blend-mode: screen; /* For black background video */
+      border-radius: 12px;
     }
 
     @media (prefers-color-scheme: light) {
       body {
         background: #F2F2F7;
         color: #000;
-      }
-      .nfc-container video {
-        mix-blend-mode: multiply; /* For white background video */
       }
     }
   </style>
@@ -214,9 +214,7 @@
   </div>
 
   <div class="nfc-container" id="nfcContainer">
-    <video id="nfcVideo" playsinline muted loop>
-      <source src="" type="video/mp4" id="nfcVideoSrc">
-    </video>
+    <video id="nfcVideo" playsinline muted loop autoplay></video>
   </div>
 
   <div class="popup">
@@ -415,10 +413,11 @@
               const video = document.getElementById('nfcVideo');
               const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
               video.src = isDark ? 'darkanim.mp4' : 'whiteanim.mp4';
+              video.load();
               nfc.style.top = `${25 + targetHeight + 30}px`;
               nfc.classList.add('visible');
-              video.play();
-            }, 1500);
+              video.play().catch(e => console.error("Video play error:", e));
+            }, 600);
           };
 
           const handleCancel = () => {
