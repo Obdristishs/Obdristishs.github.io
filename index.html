@@ -333,11 +333,11 @@
         clone.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), height 0.5s cubic-bezier(0.32, 0.72, 0, 1), box-shadow 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
         clone.style.boxShadow = '0 10px 40px rgba(0,0,0,0.6)';
         
-        document.body.appendChild(clone);
+        card.parentNode.insertBefore(clone, card.nextSibling);
         document.querySelector('.card-stack').style.overflow = 'hidden'; // Lock background scroll
 
         // Animate other cards to form a tight stack at the bottom of the screen
-        const otherCards = document.querySelectorAll('.card-stack .card:not(.is-active-original)');
+        const otherCards = document.querySelectorAll('.card-stack .card:not(.is-active-original):not(.clone-card)');
         
         // Phase 1: Temporarily remove transform to measure their pure layout positions
         otherCards.forEach(c => c.style.transform = 'none');
@@ -357,6 +357,7 @@
         clone.offsetHeight;
 
         // Animate to target
+        clone.style.zIndex = '1000'; // Jump to front during opening
         clone.style.transform = `translate3d(${targetLeft}px, 90px, 0) scale(1.02)`;
         clone.style.height = `${targetHeight}px`;
 
@@ -367,13 +368,14 @@
           const origRect = card.getBoundingClientRect();
           
           // Animate back to original position
+          clone.style.zIndex = ''; // Restore correct z-index so subsequent cards overlap it as they slide up
           clone.style.transform = `translate3d(${origRect.left}px, ${origRect.top}px, 0) scale(1)`;
           clone.style.height = `${origRect.height}px`;
           clone.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
 
           // Bring other cards back
           const stack = document.querySelector('.card-stack');
-          const allCards = document.querySelectorAll('.card-stack .card');
+          const allCards = document.querySelectorAll('.card-stack .card:not(.clone-card)');
           allCards.forEach((c, index) => {
             const yOffset = stack.scrollTop * (index * 0.08); // Apple-like accordion spread
             c.style.transform = `translateY(${yOffset}px)`; 
