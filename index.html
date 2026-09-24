@@ -369,7 +369,7 @@
           
           const origRect = card.getBoundingClientRect();
           
-          // Animate back to original position
+          clone.style.transition = 'transform 0.85s cubic-bezier(0.16, 1, 0.3, 1), clip-path 0.85s cubic-bezier(0.16, 1, 0.3, 1), -webkit-clip-path 0.85s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.85s cubic-bezier(0.16, 1, 0.3, 1)';
           clone.style.zIndex = '';
           clone.style.transform = `translate3d(${origRect.left}px, ${origRect.top}px, 0) scale(1)`;
           clone.style.clipPath = `inset(0px 0px ${Math.max(0, cropAmount)}px 0px round 16px)`;
@@ -401,6 +401,47 @@
         });
 
 
+
+        // Swipe to close logic
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+        
+        clone.addEventListener('touchstart', (e) => {
+          if (e.touches.length > 1) return;
+          startY = e.touches[0].clientY;
+          isDragging = true;
+          clone.style.transition = 'none'; // Follow finger exactly
+        }, {passive: true});
+
+        clone.addEventListener('touchmove', (e) => {
+          if (!isDragging) return;
+          const y = e.touches[0].clientY;
+          let deltaY = y - startY;
+          
+          if (deltaY < 0) {
+            // Dragging UP: heavy resistance (rubber band effect)
+            deltaY = deltaY / 3;
+          }
+          
+          currentY = deltaY;
+          clone.style.transform = `translate3d(${targetLeft}px, ${25 + deltaY}px, 0) scale(1)`;
+        }, {passive: true});
+
+        clone.addEventListener('touchend', () => {
+          if (!isDragging) return;
+          isDragging = false;
+          
+          if (currentY > 80) {
+             // Swipe down far enough -> Close the card
+             clone.click();
+          } else {
+             // Snap back to open position
+             clone.style.transition = 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)';
+             clone.style.transform = `translate3d(${targetLeft}px, 25px, 0) scale(1)`;
+             currentY = 0;
+          }
+        });
 
         // Face ID logic
         const isWhatsApp = imageSrc.includes('WhatsApp');
