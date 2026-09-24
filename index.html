@@ -26,7 +26,7 @@
 
     .card-stack {
       margin-top: 0;
-      padding: 60px 0 150px 0;
+      padding: 15px 0 15px 0;
       height: 100vh;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
@@ -537,26 +537,28 @@
       const cardHeight = cardWidth / 1.58;
       
       const screenH = window.innerHeight;
-      const availableHeight = screenH * 0.85; // Use 85% of screen height for the stack
+      const topPadding = 15;
+      const bottomPadding = 15;
+      const availableHeight = screenH - topPadding - bottomPadding;
       
       let visibleGap = (availableHeight - cardHeight) / (N - 1);
       
-      const minGap = 30;
-      const maxGap = 70;
+      // Prevent cards from spreading out too much or compressing too tightly
+      const minGap = 35;
+      const maxGap = 100;
       visibleGap = Math.max(minGap, Math.min(maxGap, visibleGap));
       
       cards.forEach((c, index) => {
-        // Sticky boundary: cards will stop here when scrolled up
-        c.style.top = `${60 + (index * 4)}px`;
+        // Sticky boundary: if they ever scroll, they compress at the top
+        c.style.top = `${topPadding + (index * 4)}px`;
         c.style.position = 'sticky';
         
         if (index < N - 1) {
-          // Cards are mostly visible initially (only 40px overlap)
-          // They will only stack completely when they hit the sticky boundary
-          c.style.marginBottom = '-40px';
+          // Cards overlap precisely to fit the screen height
+          c.style.marginBottom = `${-(cardHeight - visibleGap)}px`;
         } else {
-          // Normal padding for the last card
-          c.style.marginBottom = '60px';
+          // No extra bottom margin: perfectly flush with the bottom of the screen
+          c.style.marginBottom = '0px';
         }
       });
     }
