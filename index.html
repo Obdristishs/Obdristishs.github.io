@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -10,225 +10,78 @@
   <meta name="apple-mobile-web-app-title" content="Wallet">
   <link rel="apple-touch-icon" href="icon.png">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; color: white; font-family: -apple-system, BlinkMacSystemFont, sans-serif; height: 100vh; overflow: hidden; }
+    header { position: fixed; top: 0; width: 100%; padding: 1rem; display: flex; justify-content: space-between; align-items: center; z-index: 100; background: #000; transition: all 0.3s ease; }
+    .title { font-size: 32px; font-weight: 700; }
+    .controls { display: flex; gap: 12px; }
+    .control-btn { width: 44px; height: 44px; background: rgba(255,255,255,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .control-btn svg { width: 24px; height: 24px; fill: #000; }
+    
+    .card-stack {
+      margin-top: 80px;
+      padding: 20px 0 120px 0;
+      height: calc(100vh - 80px);
+      overflow-y: auto;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+      transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
     }
-
-    body {
-      background: #000;
-      color: white;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      height: 100vh;
+    .card-stack.pushed-down {
+      transform: translateY(calc(100vh - 200px));
       overflow: hidden;
     }
 
-    header {
-      position: fixed;
-      top: 0;
-      width: 100%;
-      padding: 1rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      z-index: 100;
-      background: #000;
-      transition: all 0.3s ease;
-    }
-
-    .title {
-      font-size: 32px;
-      font-weight: 700;
-    }
-
-    .controls {
-      display: flex;
-      gap: 12px;
-    }
-
-    .control-btn {
-      width: 44px;
-      height: 44px;
-      background: rgba(255,255,255,0.9);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-    }
-
-    .control-btn svg {
-      width: 24px;
-      height: 24px;
-      fill: #000;
-    }
-
-    #done-btn {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      z-index: 1001;
-      background: transparent;
-      color: white;
-      border: none;
-      font-size: 18px;
-      font-weight: bold;
-      display: none;
-      cursor: pointer;
-    }
-
-    #done-btn.visible {
-      display: block;
-    }
-
-    .card-stack {
-      margin-top: 80px;
-      padding: 20px 0;
-      height: calc(100vh - 80px);
-      overflow-y: auto;
-      scroll-behavior: smooth;
-    }
-
-    .section {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0;
-    }
+    .section { display: flex; flex-direction: column; align-items: center; gap: 0; }
 
     .card {
       position: relative;
       width: 90%;
       max-width: 400px;
-      aspect-ratio: 1.586; /* Standard credit card ratio */
       border-radius: 16px;
       overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      margin-bottom: -22%; /* overlap to bring them closer */
-      transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s ease;
-      will-change: transform, opacity;
-      transform: translateZ(0); /* Hardware acceleration */
+      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.5); /* Apple wallet casts shadow upwards onto previous card */
+      margin-bottom: -72%; 
+      transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), 
+                  margin-bottom 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
+                  top 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
+                  left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+      will-change: transform, margin-bottom, top, left;
+      transform: translateZ(0); 
       cursor: pointer;
     }
-
-    .card img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-      pointer-events: none; /* Prevent image drag interfering with clicks */
+    
+    /* Make the bottom stack cards even closer */
+    .card-stack.pushed-down .card {
+      margin-bottom: -90%;
     }
 
-    .face-id-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
-      backdrop-filter: blur(5px);
-    }
+    .card img { width: 100%; display: block; pointer-events: none; }
+    .card.active { position: fixed; z-index: 1000; }
 
-    .face-id-overlay.visible {
-      opacity: 1;
-      pointer-events: auto;
-    }
+    .header-hidden { opacity: 0; pointer-events: none; }
+    .loyalty-separator { height: 100px; } /* Give some space between credit and loyalty */
 
-    .face-id-box {
-      background: rgba(40, 40, 40, 0.85);
-      padding: 30px;
-      border-radius: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 15px;
-      width: 180px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
+    /* Face ID and Reader UI */
+    .reader-ui { position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%); z-index: 1001; text-align: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+    .reader-ui.visible { opacity: 1; }
+    .face-id { display: flex; flex-direction: column; align-items: center; }
+    .face-id svg { width: 60px; height: 60px; stroke: #fff; animation: scan 1.5s infinite alternate; }
+    @keyframes scan { 0% { transform: scale(0.95); opacity: 0.7; } 100% { transform: scale(1.05); opacity: 1; } }
+    
+    .reader-prompt { display: flex; flex-direction: column; align-items: center; }
+    .phone-icon { position: relative; width: 60px; height: 60px; display: flex; justify-content: center; align-items: center; margin-bottom: 15px; }
+    .phone-icon .circle { position: absolute; border-radius: 50%; border: 2px solid #007aff; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+    .phone-icon .c1 { width: 44px; height: 44px; border-width: 3px; }
+    .phone-icon .c2 { width: 60px; height: 60px; border-width: 2px; opacity: 0.6; }
+    .phone-icon .phone { width: 22px; height: 32px; background: #007aff; border-radius: 4px; border: 2px solid #000; z-index: 2; box-shadow: 0 0 0 2px #007aff; }
 
-    .face-id-icon {
-      width: 48px;
-      height: 48px;
-      animation: pulse 1.5s infinite;
-    }
+    .reader-prompt .text { font-size: 16px; color: #fff; opacity: 0.9; line-height: 1.4; }
 
-    .face-id-icon.success {
-      animation: none;
-    }
-
-    .face-id-text {
-      font-size: 16px;
-      font-weight: 500;
-      color: white;
-    }
-
-    @keyframes pulse {
-      0% { opacity: 0.5; transform: scale(0.95); }
-      50% { opacity: 1; transform: scale(1.05); }
-      100% { opacity: 0.5; transform: scale(0.95); }
-    }
-
-    .card.active {
-      position: fixed;
-      top: 90px;
-      left: 50%;
-      z-index: 1000;
-      /* Remove width/max-width changes to prevent layout thrashing */
-      animation: rise 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
-    }
-
-    @keyframes rise {
-      from {
-        transform: translate(-50%, 30px) scale(0.95);
-        opacity: 0.5;
-      }
-      to {
-        transform: translate(-50%, 0) scale(1.05);
-        opacity: 1;
-      }
-    }
-
-    .popup {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: #1c1c1e;
-      padding: 1.5rem;
-      border-radius: 24px 24px 0 0;
-      transform: translateY(100%);
-      transition: transform 0.3s ease;
-      z-index: 1000;
-    }
-
-    .popup.visible {
-      transform: translateY(0);
-    }
-
-    .popup button {
-      width: 100%;
-      padding: 1rem;
-      background: #363638;
-      color: white;
-      border: none;
-      border-radius: 12px;
-      margin-bottom: 10px;
-      cursor: pointer;
-    }
-
-    .header-hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .loyalty-separator {
-      height: 150px;
-    }
+    /* Add popup styles */
+    .popup { position: fixed; bottom: 0; left: 0; right: 0; background: #1c1c1e; padding: 1.5rem; border-radius: 24px 24px 0 0; transform: translateY(100%); transition: transform 0.3s ease; z-index: 2000; }
+    .popup.visible { transform: translateY(0); }
+    .popup button { width: 100%; padding: 1rem; background: #363638; color: white; border: none; border-radius: 12px; margin-bottom: 10px; cursor: pointer; font-size: 16px; font-weight: 500;}
   </style>
 </head>
 <body>
@@ -241,12 +94,27 @@
     </div>
   </header>
 
-  <button id="done-btn">Done</button>
-
-  <div class="card-stack">
+  <div class="card-stack" id="cardStack">
     <div class="section" id="creditSection"></div>
     <div class="loyalty-separator"></div>
     <div class="section" id="loyaltySection"></div>
+  </div>
+
+  <div class="reader-ui" id="readerUi">
+    <div class="face-id" id="faceId">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 3h-2a2 2 0 0 0 -2 2v2M17 3h2a2 2 0 0 1 2 2v2M3 17v2a2 2 0 0 0 2 2h2M21 17v2a2 2 0 0 1 -2 2h-2M9 10h.01M15 10h.01M9 15c1.5 1 4.5 1 6 0"/>
+      </svg>
+      <div style="margin-top:10px;font-size:15px">Face ID</div>
+    </div>
+    <div class="reader-prompt" id="readerPrompt" style="display:none;">
+      <div class="phone-icon">
+        <div class="circle c2"></div>
+        <div class="circle c1"></div>
+        <div class="phone"></div>
+      </div>
+      <div class="text">Поднесите устройство<br>к считывателю</div>
+    </div>
   </div>
 
   <div class="popup">
@@ -255,52 +123,100 @@
     <button id="cancelBtn">Cancel</button>
   </div>
 
-  <div class="face-id-overlay" id="faceIdOverlay">
-    <div class="face-id-box">
-      <svg class="face-id-icon" id="faceIdSvg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
-        <path d="M7 3H5a2 2 0 0 0-2 2v2M17 3h2a2 2 0 0 1 2 2v2M3 17v2a2 2 0 0 0 2 2h2M21 17v2a2 2 0 0 1-2 2h-2M9 9h.01M15 9h.01M9 15s1.5 2 3 2 3-2 3-2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <div class="face-id-text" id="faceIdText">Face ID</div>
-    </div>
-  </div>
-
   <script>
     const STORAGE_KEY = 'walletCards';
     let creditCards = [];
     let loyaltyCards = [];
+    let readerTimeout;
 
     function saveCards() {
       const data = [
-        ...creditCards.map(card => ({ image: card.image, isLoyalty: false })),
-        ...loyaltyCards.map(card => ({ image: card.image, isLoyalty: true }))
+        ...creditCards.map(c => ({ image: c.image, isLoyalty: false })),
+        ...loyaltyCards.map(c => ({ image: c.image, isLoyalty: true }))
       ];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     }
 
     function loadSavedCards() {
-      let saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-      const defaultCardImage = 'WhatsApp Image 2026-09-23 at 22.54.24.jpeg';
-      
-      // Ensure default card exists
-      if (!saved.some(c => c.image === defaultCardImage)) {
-        saved.push({ image: defaultCardImage, isLoyalty: false });
-      }
-
-      // Sort so the default card is always the last in the array (renders at the front of the stack)
-      saved.sort((a, b) => {
-        if (a.image === defaultCardImage) return 1;
-        if (b.image === defaultCardImage) return -1;
-        return 0;
-      });
-
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
       saved.forEach(({ image, isLoyalty }) => {
         createCard(image, isLoyalty);
       });
+
+      // Ensure default card is ALWAYS the main (last added to credit section = front of stack)
+      const defaultCardImage = 'WhatsApp Image 2026-09-23 at 22.54.24.jpeg';
+      let hasDefault = saved.some(c => c.image === defaultCardImage);
+      
+      // We can also remove it and re-add it so it's always at the front!
+      // But for now, if it's not there, we add it.
+      if (!hasDefault) {
+        createCard(defaultCardImage, false);
+      } else {
+        // If it exists, let's move it to the front by removing its DOM element and re-appending it
+        const allCards = document.querySelectorAll('.card');
+        allCards.forEach(c => {
+           if(c.dataset.image === defaultCardImage) {
+              document.getElementById('creditSection').appendChild(c);
+           }
+        });
+      }
+    }
+
+    function showReaderUI() {
+      const ui = document.getElementById('readerUi');
+      const faceId = document.getElementById('faceId');
+      const prompt = document.getElementById('readerPrompt');
+      
+      ui.classList.add('visible');
+      faceId.style.display = 'flex';
+      prompt.style.display = 'none';
+
+      clearTimeout(readerTimeout);
+      readerTimeout = setTimeout(() => {
+        faceId.style.display = 'none';
+        prompt.style.display = 'flex';
+      }, 1500);
+    }
+
+    function hideReaderUI() {
+      clearTimeout(readerTimeout);
+      document.getElementById('readerUi').classList.remove('visible');
+    }
+
+    function closeActiveCard() {
+      const card = document.querySelector('.card.active');
+      if (!card) return;
+
+      hideReaderUI();
+
+      const placeholder = card._placeholder;
+      if (!placeholder) return;
+      const rect = placeholder.getBoundingClientRect();
+
+      card.style.top = rect.top + 'px';
+      card.style.left = rect.left + 'px';
+      card.style.transform = 'translateZ(0)'; // scale back
+
+      document.getElementById('cardStack').classList.remove('pushed-down');
+      document.querySelector('header').classList.remove('header-hidden');
+
+      setTimeout(() => {
+        if (card.classList.contains('active')) {
+            placeholder.parentNode.insertBefore(card, placeholder);
+            placeholder.remove();
+            delete card._placeholder;
+            card.classList.remove('active');
+            card.style = ''; // remove inline styles
+        }
+      }, 400);
     }
 
     function createCard(imageSrc, isLoyalty) {
       const card = document.createElement('div');
       card.className = 'card';
+      card.dataset.image = imageSrc;
+      card.dataset.type = isLoyalty ? 'loyalty' : 'credit';
+      
       const img = document.createElement('img');
       img.src = imageSrc;
       card.appendChild(img);
@@ -311,77 +227,59 @@
       const data = { element: card, image: imageSrc };
       (isLoyalty ? loyaltyCards : creditCards).push(data);
 
-      card.addEventListener('click', () => {
+      card.addEventListener('click', (e) => {
+        // If this card is already active, close it
         if (card.classList.contains('active')) {
           closeActiveCard();
           return;
         }
 
-        openCard(card);
+        // If another card is active, and the stack is pushed down, clicks on inactive cards should close the active card
+        if (document.getElementById('cardStack').classList.contains('pushed-down')) {
+          closeActiveCard();
+          e.stopPropagation();
+          return;
+        }
+
+        // Make active
+        const rect = card.getBoundingClientRect();
+        
+        // Create placeholder
+        const placeholder = document.createElement('div');
+        placeholder.className = 'card-placeholder';
+        placeholder.style.height = card.offsetHeight + 'px';
+        placeholder.style.marginBottom = '-72%';
+        placeholder.style.visibility = 'hidden';
+        card.parentNode.insertBefore(placeholder, card);
+        card._placeholder = placeholder;
+
+        // Move to body to avoid transform clipping
+        document.body.appendChild(card);
+        card.classList.add('active');
+        
+        // Initial fixed position
+        card.style.top = rect.top + 'px';
+        card.style.left = rect.left + 'px';
+        card.style.margin = '0';
+        card.style.width = rect.width + 'px';
+
+        card.offsetHeight; // Force reflow
+
+        // Animate
+        card.style.top = '70px';
+        card.style.left = '50%';
+        card.style.transform = 'translateX(-50%) scale(1.02)';
+
+        document.getElementById('cardStack').classList.add('pushed-down');
+        document.querySelector('header').classList.add('header-hidden');
+
         if (!isLoyalty) {
-          simulateFaceID();
+          showReaderUI();
         }
       });
 
       saveCards();
     }
-
-    function openCard(card) {
-      const placeholder = document.createElement('div');
-      placeholder.className = 'card-placeholder';
-      placeholder.style.height = card.offsetHeight + 'px';
-      placeholder.style.marginBottom = '-22%';
-      placeholder.style.visibility = 'hidden';
-      card.parentNode.insertBefore(placeholder, card);
-      card._placeholder = placeholder;
-
-      card.classList.add('active');
-      document.getElementById('done-btn').classList.add('visible');
-      document.querySelectorAll('.card:not(.active)').forEach(c => {
-        c.style.opacity = '0';
-        c.style.pointerEvents = 'none';
-      });
-      document.querySelector('header').classList.add('header-hidden');
-    }
-
-    function closeActiveCard() {
-      const active = document.querySelector('.card.active');
-      if (active) {
-        if (active._placeholder) {
-          active._placeholder.remove();
-          delete active._placeholder;
-        }
-        active.classList.remove('active');
-        document.querySelectorAll('.card').forEach(c => {
-          c.style.opacity = '1';
-          c.style.pointerEvents = 'auto';
-        });
-        document.querySelector('header').classList.remove('header-hidden');
-        document.getElementById('done-btn').classList.remove('visible');
-      }
-    }
-
-    function simulateFaceID() {
-      const overlay = document.getElementById('faceIdOverlay');
-      const text = document.getElementById('faceIdText');
-      const svg = document.getElementById('faceIdSvg');
-      
-      overlay.classList.add('visible');
-      text.innerText = 'Распознавание лица...';
-      svg.classList.remove('success');
-      svg.innerHTML = '<path d="M7 3H5a2 2 0 0 0-2 2v2M17 3h2a2 2 0 0 1 2 2v2M3 17v2a2 2 0 0 0 2 2h2M21 17v2a2 2 0 0 1-2 2h-2M9 9h.01M15 9h.01M9 15s1.5 2 3 2 3-2 3-2" stroke-linecap="round" stroke-linejoin="round"/>';
-
-      setTimeout(() => {
-        text.innerText = 'Успешно';
-        svg.classList.add('success');
-        svg.innerHTML = '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke-linecap="round" stroke-linejoin="round"/><polyline points="22 4 12 14.01 9 11.01" stroke-linecap="round" stroke-linejoin="round"/>';
-        setTimeout(() => {
-          overlay.classList.remove('visible');
-        }, 800);
-      }, 1200);
-    }
-
-    document.getElementById('done-btn').addEventListener('click', closeActiveCard);
 
     document.getElementById('addBtn').addEventListener('click', () => {
       document.querySelector('.popup').classList.add('visible');
@@ -391,46 +289,29 @@
       document.querySelector('.popup').classList.remove('visible');
     });
 
-    document.getElementById('addCreditBtn').addEventListener('click', () => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = e => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          createCard(reader.result, false);
+    function setupFileInput(btnId, isLoyalty) {
+      document.getElementById(btnId).addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = e => {
+          const reader = new FileReader();
+          reader.onload = () => createCard(reader.result, isLoyalty);
+          reader.readAsDataURL(e.target.files[0]);
         };
-        reader.readAsDataURL(e.target.files[0]);
-      };
-      input.click();
-      document.querySelector('.popup').classList.remove('visible');
-    });
+        input.click();
+        document.querySelector('.popup').classList.remove('visible');
+      });
+    }
 
-    document.getElementById('addLoyaltyBtn').addEventListener('click', () => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = e => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          createCard(reader.result, true);
-        };
-        reader.readAsDataURL(e.target.files[0]);
-      };
-      input.click();
-      document.querySelector('.popup').classList.remove('visible');
-    });
+    setupFileInput('addCreditBtn', false);
+    setupFileInput('addLoyaltyBtn', true);
 
     loadSavedCards();
 
-    // Register Service Worker for offline support
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').then(registration => {
-          console.log('ServiceWorker registration successful');
-        }).catch(err => {
-          console.log('ServiceWorker registration failed: ', err);
-        });
+        navigator.serviceWorker.register('./sw.js').catch(console.error);
       });
     }
   </script>
