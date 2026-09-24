@@ -169,10 +169,37 @@
       100% { transform: scale(1); opacity: 1; }
     }
 
+    .nfc-container {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      z-index: 900; /* Below the card (1000) */
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .nfc-container.visible {
+      opacity: 1;
+    }
+
+    .nfc-container video {
+      width: 100%;
+      height: auto;
+      mix-blend-mode: screen; /* For black background video */
+    }
+
     @media (prefers-color-scheme: light) {
       body {
         background: #F2F2F7;
         color: #000;
+      }
+      .nfc-container video {
+        mix-blend-mode: multiply; /* For white background video */
       }
     }
   </style>
@@ -184,6 +211,12 @@
     <div class="section" id="creditSection"></div>
     <div class="loyalty-separator"></div>
     <div class="section" id="loyaltySection"></div>
+  </div>
+
+  <div class="nfc-container" id="nfcContainer">
+    <video id="nfcVideo" playsinline muted loop>
+      <source src="" type="video/mp4" id="nfcVideoSrc">
+    </video>
   </div>
 
   <div class="popup">
@@ -324,6 +357,10 @@
         clone.addEventListener('click', () => {
           document.getElementById('faceIdOverlay').classList.remove('visible');
           
+          const nfc = document.getElementById('nfcContainer');
+          nfc.classList.remove('visible');
+          document.getElementById('nfcVideo').pause();
+          
           const origRect = card.getBoundingClientRect();
           
           // Animate back to original position
@@ -373,6 +410,14 @@
             text.textContent = 'Ready';
             setTimeout(() => {
               overlay.classList.remove('visible');
+              
+              const nfc = document.getElementById('nfcContainer');
+              const video = document.getElementById('nfcVideo');
+              const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+              video.src = isDark ? 'darkanim.mp4' : 'whiteanim.mp4';
+              nfc.style.top = `${25 + targetHeight + 30}px`;
+              nfc.classList.add('visible');
+              video.play();
             }, 1500);
           };
 
