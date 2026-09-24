@@ -50,6 +50,7 @@
     }
 
     .card {
+      position: relative;
       width: 90%;
       max-width: 400px;
       aspect-ratio: 1.58 / 1;
@@ -57,13 +58,12 @@
       overflow: hidden;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
       cursor: pointer;
-      -webkit-backface-visibility: hidden;
-      backface-visibility: hidden;
+      will-change: transform;
+      transform: translateZ(0);
     }
 
     .clone-card {
       position: fixed !important;
-      z-index: 1000 !important;
     }
 
     .card img {
@@ -379,10 +379,12 @@
           clone.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
 
           // Bring other cards back to their natural sticky positions
+          const stack = document.querySelector('.card-stack');
           const allCards = document.querySelectorAll('.card-stack .card:not(.clone-card)');
-          allCards.forEach((c) => {
+          allCards.forEach((c, index) => {
+            const yOffset = stack.scrollTop * (index * 0.08); // Apple-like accordion spread
             c.style.transition = 'transform 0.85s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1)';
-            c.style.transform = ''; // Clear transform so sticky positioning works again!
+            c.style.transform = `translate3d(0, ${yOffset}px, 0)`;
             c.style.opacity = c.classList.contains('is-active-original') ? '0' : '1';
             c.style.pointerEvents = 'auto';
           });
@@ -546,15 +548,12 @@
       visibleGap = Math.max(minGap, Math.min(maxGap, visibleGap));
       
       cards.forEach((c, index) => {
-        // Sticky offset: they compress into a tight stack at the top with a tiny 3px gap
-        c.style.top = `${60 + (index * 3)}px`;
-        c.style.position = 'sticky';
-        
+        c.style.position = '';
+        c.style.top = '';
         if (index < N - 1) {
           c.style.marginBottom = `${-(cardHeight - visibleGap)}px`;
         } else {
-          // Extra margin at the bottom so the user can scroll all the way until the last card hits the top
-          c.style.marginBottom = '60vh';
+          c.style.marginBottom = '0px';
         }
       });
     }
@@ -562,6 +561,31 @@
     loadSavedCards();
     updateCardSpacing();
     window.addEventListener('resize', updateCardSpacing);
+
+    // Apple Wallet Accordion Scroll Effect
+    const stackContainer = document.querySelector('.card-stack');
+    let isScrolling = false;
+    
+    stackContainer.addEventListener('scroll', () => {
+      if (document.querySelector('.clone-card')) return; 
+
+      if (!isScrolling) {
+        window.requestAnimationFrame(() => {
+          const scrollY = stackContainer.scrollTop;
+          const cards = document.querySelectorAll('.card-stack .card:not(.clone-card)');
+          
+          cards.forEach((card, index) => {
+            // Apply slight spring/parallax effect
+            const yOffset = scrollY * (index * 0.08); 
+            // Add a tiny transition to mask the asynchronous JS scroll jitter on iOS
+            card.style.transition = 'transform 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+            card.style.transform = `translate3d(0, ${yOffset}px, 0)`; 
+          });
+          isScrolling = false;
+        });
+        isScrolling = true;
+      }
+    });
 
     // Register Service Worker for offline support
     if ('serviceWorker' in navigator) {
