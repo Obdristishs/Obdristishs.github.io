@@ -293,7 +293,10 @@
       (isLoyalty ? loyaltyCards : creditCards).push(data);
 
       card.addEventListener('click', () => {
-        if (document.querySelector('.clone-card')) return;
+        if (document.querySelector('.clone-card')) {
+          document.querySelector('.clone-card').click();
+          return;
+        }
 
         const rect = card.getBoundingClientRect();
         
@@ -323,6 +326,7 @@
         clone.style.width = `${finalWidth}px`; // Fix width instantly to target width (matches rect.width usually)
         clone.style.height = `${rect.height}px`; // Start at cropped height
         clone.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
+        clone.style.pointerEvents = 'auto'; // Fix: Ensure clone is clickable
         clone.style.margin = '0';
         clone.style.zIndex = '1000';
         clone.style.opacity = '1';
@@ -330,19 +334,23 @@
         clone.style.boxShadow = '0 10px 40px rgba(0,0,0,0.6)';
         
         document.body.appendChild(clone);
+        document.querySelector('.card-stack').style.overflow = 'hidden'; // Lock background scroll
 
-        // Animate other cards out (above fly up, below fly down)
-        let isAbove = true;
-        document.querySelectorAll('.card:not(.clone-card)').forEach(c => {
-          if (c.classList.contains('is-active-original')) {
-            isAbove = false;
-            return;
-          }
-          
-          c.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
-          c.style.transform = isAbove ? 'translateY(-100vh)' : 'translateY(100vh)';
-          c.style.opacity = '0';
-          c.style.pointerEvents = 'none';
+        // Animate other cards to form a tight stack at the bottom of the screen
+        const otherCards = document.querySelectorAll('.card-stack .card:not(.is-active-original)');
+        
+        // Phase 1: Temporarily remove transform to measure their pure layout positions
+        otherCards.forEach(c => c.style.transform = 'none');
+        
+        const baseTops = Array.from(otherCards).map(c => c.getBoundingClientRect().top);
+        
+        // Phase 2: Apply transition and new transform to move them to the bottom stack
+        otherCards.forEach((c, i) => {
+          c.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
+          const targetY = window.innerHeight - 100 + (i * 12); // Tightly stacked at bottom
+          const translateY = targetY - baseTops[i];
+          c.style.transform = `translateY(${translateY}px)`;
+          c.style.opacity = '1'; // Keep them visible
         });
 
         // Trigger reflow to start animation
@@ -374,6 +382,7 @@
           });
 
           document.querySelector('header').classList.remove('header-hidden');
+          document.querySelector('.card-stack').style.overflow = ''; // Unlock background scroll
 
           // After animation ends, remove clone and show original
           setTimeout(() => {
