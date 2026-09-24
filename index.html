@@ -30,6 +30,12 @@
       height: calc(100vh - 40px);
       overflow-y: auto;
       scroll-behavior: smooth;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .card-stack::-webkit-scrollbar {
+      display: none;
     }
 
     .section {
