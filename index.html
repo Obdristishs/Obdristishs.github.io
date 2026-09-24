@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Wallet Clone</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Wallet">
+  <link rel="apple-touch-icon" href="icon.png">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #000;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    header {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+      background: #000;
+      transition: all 0.3s ease;
+    }
+
+    .title {
+      font-size: 32px;
+      font-weight: 700;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+    }
+
+    .control-btn {
+      width: 44px;
+      height: 44px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .control-btn svg {
+      width: 24px;
+      height: 24px;
+      fill: #000;
+    }
+
+    #done-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 1001;
+      background: transparent;
+      color: white;
+      border: none;
+      font-size: 18px;
+      font-weight: bold;
+      display: none;
+      cursor: pointer;
+    }
+
+    #done-btn.visible {
+      display: block;
+    }
+
+    .card-stack {
+      margin-top: 80px;
+      padding: 20px 0;
+      height: calc(100vh - 80px);
+      overflow-y: auto;
+      scroll-behavior: smooth;
+    }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .card {
+      position: relative;
+      width: 90%;
+      max-width: 400px;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      margin-bottom: -22%; /* overlap to bring them closer */
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      cursor: pointer;
+    }
+
+    .card img {
+      width: 100%;
+      display: block;
+    }
+
+    .card.active {
+      position: fixed;
+      top: 90px;
+      left: 50%;
+      transform: translate(-50%, 0) scale(1.02);
+      z-index: 1000;
+      width: 90%;
+      max-width: 95%;
+      animation: rise 0.3s ease-out forwards;
+    }
+
+    @keyframes rise {
+      from {
+        transform: translate(-50%, 100%) scale(1);
+      }
+      to {
+        transform: translate(-50%, 0) scale(1.02);
+      }
+    }
+
+    .popup {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1c1c1e;
+      padding: 1.5rem;
+      border-radius: 24px 24px 0 0;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+    }
+
+    .popup.visible {
+      transform: translateY(0);
+    }
+
+    .popup button {
+      width: 100%;
+      padding: 1rem;
+      background: #363638;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+
+    .header-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loyalty-separator {
+      height: 150px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 class="title">Wallet</h1>
+    <div class="controls">
+      <div class="control-btn" id="addBtn">
+        <svg viewBox="0 0 24 24"><path d="M19 11h-6V5a1 1 0 0 0-2 0v6H5a1 1 0 0 0 0 2h6v6a1 1 0 0 0 2 0v-6h6a1 1 0 0 0 0-2z"/></svg>
+      </div>
+    </div>
+  </header>
+
+  <button id="done-btn">Done</button>
+
+  <div class="card-stack">
+    <div class="section" id="creditSection"></div>
+    <div class="loyalty-separator"></div>
+    <div class="section" id="loyaltySection"></div>
+  </div>
+
+  <div class="popup">
+    <button id="addCreditBtn">Add Credit/Debit Card</button>
+    <button id="addLoyaltyBtn">Add Loyalty Card</button>
+    <button id="cancelBtn">Cancel</button>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'walletCards';
+    let creditCards = [];
+    let loyaltyCards = [];
+
+    function saveCards() {
+      const data = [
+        ...creditCards.map(card => ({ image: card.image, isLoyalty: false })),
+        ...loyaltyCards.map(card => ({ image: card.image, isLoyalty: true }))
+      ];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function loadSavedCards() {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      saved.forEach(({ image, isLoyalty }) => {
+        createCard(image, isLoyalty);
+      });
+
+      // Default card that is always in the project
+      const defaultCardImage = 'WhatsApp Image 2026-09-23 at 22.54.24.jpeg';
+      if (!saved.some(c => c.image === defaultCardImage)) {
+        createCard(defaultCardImage, false);
+      }
+    }
+
+    function createCard(imageSrc, isLoyalty) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const img = document.createElement('img');
+      img.src = imageSrc;
+      card.appendChild(img);
+
+      const section = isLoyalty ? document.getElementById('loyaltySection') : document.getElementById('creditSection');
+      section.appendChild(card);
+
+      const data = { element: card, image: imageSrc };
+      (isLoyalty ? loyaltyCards : creditCards).push(data);
+
+      card.addEventListener('click', () => {
+        card.classList.add('active');
+        document.getElementById('done-btn').classList.add('visible');
+        document.querySelectorAll('.card:not(.active)').forEach(c => {
+          c.style.opacity = '0';
+          c.style.pointerEvents = 'none';
+        });
+        document.querySelector('header').classList.add('header-hidden');
+      });
+
+      saveCards();
+    }
+
+    document.getElementById('done-btn').addEventListener('click', () => {
+      const active = document.querySelector('.card.active');
+      if (active) {
+        active.classList.remove('active');
+        active.style.opacity = '1';
+        document.querySelectorAll('.card').forEach(c => {
+          c.style.opacity = '1';
+          c.style.pointerEvents = 'auto';
+        });
+        document.querySelector('header').classList.remove('header-hidden');
+        document.getElementById('done-btn').classList.remove('visible');
+      }
+    });
+
+    document.getElementById('addBtn').addEventListener('click', () => {
+      document.querySelector('.popup').classList.add('visible');
+    });
+
+    document.getElementById('cancelBtn').addEventListener('click', () => {
+      document.querySelector('.popup').classList.remove('visible');
+    });
+
+    document.getElementById('addCreditBtn').addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = e => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          createCard(reader.result, false);
+        };
+        reader.readAsDataURL(e.target.files[0]);
+      };
+      input.click();
+      document.querySelector('.popup').classList.remove('visible');
+    });
+
+    document.getElementById('addLoyaltyBtn').addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = e => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          createCard(reader.result, true);
+        };
+        reader.readAsDataURL(e.target.files[0]);
+      };
+      input.click();
+      document.querySelector('.popup').classList.remove('visible');
+    });
+
+    loadSavedCards();
+
+    // Register Service Worker for offline support
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(registration => {
+          console.log('ServiceWorker registration successful');
+        }).catch(err => {
+          console.log('ServiceWorker registration failed: ', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
