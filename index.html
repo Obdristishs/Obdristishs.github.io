@@ -25,9 +25,9 @@
     }
 
     .card-stack {
-      margin-top: 40px;
-      padding: 20px 0 150px 0;
-      height: calc(100vh - 40px);
+      margin-top: 0;
+      padding: 60px 0 300px 0;
+      height: 100vh;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
@@ -58,9 +58,14 @@
       overflow: hidden;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
       cursor: pointer;
-      will-change: transform;
-      transform: translateZ(0);
-      -webkit-transform: translateZ(0);
+      /* GPU promotion WITHOUT breaking sticky (transform breaks sticky in Safari) */
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+    }
+
+    .clone-card {
+      /* Clone must override sticky to be freely positioned */
+      position: fixed !important;
     }
 
     .card img {
@@ -272,14 +277,14 @@
         const clone = card.cloneNode(true);
         clone.classList.add('clone-card');
         clone.classList.remove('is-active-original');
-        clone.style.position = 'fixed';
+        // .clone-card CSS forces position:fixed, overriding sticky
         clone.style.top = '0px';
         clone.style.left = '0px';
         clone.style.width = `${finalWidth}px`; 
-        clone.style.height = `${targetHeight}px`; // Fix height instantly to final height to avoid layout thrashing
+        clone.style.height = `${targetHeight}px`;
         const cropAmount = targetHeight - rect.height;
-        clone.style.clipPath = `inset(0px 0px ${cropAmount}px 0px round 16px)`;
-        clone.style.webkitClipPath = `inset(0px 0px ${cropAmount}px 0px round 16px)`;
+        clone.style.clipPath = `inset(0px 0px ${Math.max(0, cropAmount)}px 0px round 16px)`;
+        clone.style.webkitClipPath = `inset(0px 0px ${Math.max(0, cropAmount)}px 0px round 16px)`;
         clone.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
         clone.style.pointerEvents = 'auto';
         clone.style.margin = '0';
@@ -287,8 +292,9 @@
         clone.style.opacity = '1';
         clone.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), clip-path 0.5s cubic-bezier(0.32, 0.72, 0, 1), -webkit-clip-path 0.5s cubic-bezier(0.32, 0.72, 0, 1), box-shadow 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
         clone.style.boxShadow = '0 10px 40px rgba(0,0,0,0.6)';
+        clone.style.aspectRatio = 'auto'; // Override aspect-ratio since we set explicit height
         
-        card.parentNode.insertBefore(clone, card.nextSibling);
+        document.body.appendChild(clone);
         document.querySelector('.card-stack').style.overflow = 'hidden'; // Lock background scroll
 
         // Animate other cards to form a tight stack at the bottom of the screen
@@ -321,21 +327,20 @@
           const origRect = card.getBoundingClientRect();
           
           // Animate back to original position
-          clone.style.zIndex = ''; // Restore correct z-index so subsequent cards overlap it as they slide up
+          clone.style.zIndex = '';
           clone.style.transform = `translate3d(${origRect.left}px, ${origRect.top}px, 0) scale(1)`;
-          clone.style.clipPath = `inset(0px 0px ${cropAmount}px 0px round 16px)`;
-          clone.style.webkitClipPath = `inset(0px 0px ${cropAmount}px 0px round 16px)`;
+          clone.style.clipPath = `inset(0px 0px ${Math.max(0, cropAmount)}px 0px round 16px)`;
+          clone.style.webkitClipPath = `inset(0px 0px ${Math.max(0, cropAmount)}px 0px round 16px)`;
           clone.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
 
           // Bring other cards back to their natural sticky positions
           const allCards = document.querySelectorAll('.card-stack .card:not(.clone-card)');
           allCards.forEach(c => {
             c.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
-            c.style.transform = 'translateZ(0)';
+            c.style.transform = ''; // Clear transform so sticky positioning works again
             c.style.opacity = c.classList.contains('is-active-original') ? '0' : '1';
             c.style.pointerEvents = 'auto';
           });
-
 
           document.querySelector('.card-stack').style.overflow = ''; // Unlock background scroll
 
@@ -347,7 +352,7 @@
             
             // Clear transitions so sticky scroll stays instant
             allCards.forEach(c => c.style.transition = '');
-          }, 500); // Wait for transition
+          }, 500);
         });
 
 
@@ -470,30 +475,33 @@
     });
 
     function updateCardSpacing() {
-      const cards = document.querySelectorAll('.card-stack .card');
+      const cards = document.querySelectorAll('.card-stack .card:not(.clone-card)');
       const N = cards.length;
       if (N <= 1) return;
       
       const cardWidth = Math.min(window.innerWidth * 0.9, 400);
       const cardHeight = cardWidth / 1.58;
       
-      // Calculate the visible "peek" for each card (how much of each card you see)
-      // On iPhone 14 (844pt height), with 8 cards, this gives ~45px peek per card
-      const availableHeight = window.innerHeight * 0.82;
+      // How much of each card "peeks" above the next one
+      // Calculate so all cards fill the viewport from top to bottom
+      const screenH = window.innerHeight;
+      const topPadding = 60; // matches CSS padding-top
+      const bottomMargin = 40; // space at the bottom of the last card
+      const availableHeight = screenH - topPadding - bottomMargin;
+      
+      // visibleGap = how many pixels of each card peek out
+      // The last card is fully visible, so: (N-1)*gap + cardHeight = availableHeight
       let visibleGap = (availableHeight - cardHeight) / (N - 1);
       
-      const minGap = 35;
-      const maxGap = 75;
+      const minGap = 30;
+      const maxGap = 70;
       visibleGap = Math.max(minGap, Math.min(maxGap, visibleGap));
       
-      const startTop = 50; // starting offset from top of viewport
-      
       cards.forEach((c, index) => {
-        // Each card sticks at an incrementally lower position
-        // This creates the native "cards sliding over each other" effect
-        c.style.top = `${startTop + (index * visibleGap)}px`;
+        // Each card sticks at this offset from the top of the scroll container viewport
+        c.style.top = `${topPadding + (index * visibleGap)}px`;
         
-        // Negative margin pulls the next card up so they overlap in the stack
+        // Negative margin-bottom collapses the space so cards overlap initially
         if (index < N - 1) {
           c.style.marginBottom = `${-(cardHeight - visibleGap)}px`;
         } else {
