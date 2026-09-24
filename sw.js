@@ -1,10 +1,16 @@
-const CACHE_NAME = 'wallet-cache-v2';
+const CACHE_NAME = 'wallet-cache-v3';
 const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
   './icon.png',
   './main.jpeg',
+  './1%20(1).jpeg',
+  './1%20(2).jpeg',
+  './1%20(3).jpeg',
+  './1%20(4).jpeg',
+  './1%20(5).jpeg',
+  './1(7).png',
   './WhatsApp%20Image%202026-09-23%20at%2022.54.24.jpeg'
 ];
 
