@@ -110,7 +110,6 @@
       overflow: hidden;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
       margin-bottom: -45%; /* overlap to bring them closer */
-      transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1);
       cursor: pointer;
     }
 
@@ -224,14 +223,7 @@
 <body>
   <header>
     <h1 class="title">Wallet</h1>
-    <div class="controls">
-      <div class="control-btn" id="addBtn">
-        <svg viewBox="0 0 24 24"><path d="M19 11h-6V5a1 1 0 0 0-2 0v6H5a1 1 0 0 0 0 2h6v6a1 1 0 0 0 2 0v-6h6a1 1 0 0 0 0-2z"/></svg>
-      </div>
-    </div>
   </header>
-
-  <button id="done-btn">Done</button>
 
   <div class="card-stack">
     <div class="section" id="creditSection"></div>
@@ -360,7 +352,40 @@
         clone.style.transform = `translate3d(${targetLeft}px, 90px, 0) scale(1.02)`;
         clone.style.height = `${targetHeight}px`;
 
-        document.getElementById('done-btn').classList.add('visible');
+        // Clone click listener to close card
+        clone.addEventListener('click', () => {
+          document.getElementById('faceIdOverlay').classList.remove('visible');
+          
+          const origRect = card.getBoundingClientRect();
+          
+          // Animate back to original position
+          clone.style.transform = `translate3d(${origRect.left}px, ${origRect.top}px, 0) scale(1)`;
+          clone.style.height = `${origRect.height}px`;
+          clone.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+
+          // Bring other cards back
+          const stack = document.querySelector('.card-stack');
+          const allCards = document.querySelectorAll('.card-stack .card');
+          allCards.forEach((c, index) => {
+            const yOffset = stack.scrollTop * (index * 0.08); // Apple-like accordion spread
+            c.style.transform = `translateY(${yOffset}px)`; 
+            c.style.opacity = c.classList.contains('is-active-original') ? '0' : '1';
+            c.style.pointerEvents = 'auto';
+          });
+
+          document.querySelector('header').classList.remove('header-hidden');
+
+          // After animation ends, remove clone and show original
+          setTimeout(() => {
+            card.style.opacity = '1';
+            card.classList.remove('is-active-original');
+            clone.remove();
+            
+            // Clear transitions to ensure instant scroll updates
+            allCards.forEach(c => c.style.transition = 'none');
+          }, 500); // Wait for transition
+        });
+
         document.querySelector('header').classList.add('header-hidden');
 
         // Face ID logic
@@ -380,7 +405,7 @@
           };
 
           const handleCancel = () => {
-            document.getElementById('done-btn').click();
+            clone.click();
           };
 
           if (window.PublicKeyCredential && window.location.protocol !== 'file:') {
@@ -445,42 +470,6 @@
       saveCards();
     }
 
-    document.getElementById('done-btn').addEventListener('click', () => {
-      document.getElementById('faceIdOverlay').classList.remove('visible');
-      const clone = document.querySelector('.clone-card');
-      const original = document.querySelector('.is-active-original');
-      
-      if (clone && original) {
-        const rect = original.getBoundingClientRect();
-        
-        // Animate back to original position
-        clone.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0) scale(1)`;
-        clone.style.height = `${rect.height}px`;
-        clone.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
-
-        // Bring other cards back
-        document.querySelectorAll('.card:not(.clone-card)').forEach(c => {
-          c.style.transform = '';
-          c.style.opacity = c.classList.contains('is-active-original') ? '0' : '1';
-          c.style.pointerEvents = 'auto';
-        });
-
-        document.querySelector('header').classList.remove('header-hidden');
-        document.getElementById('done-btn').classList.remove('visible');
-
-        // After animation ends, remove clone and show original
-        setTimeout(() => {
-          original.style.opacity = '1';
-          original.classList.remove('is-active-original');
-          clone.remove();
-        }, 500); // Wait for transition (500ms)
-      }
-    });
-
-    document.getElementById('addBtn').addEventListener('click', () => {
-      document.querySelector('.popup').classList.add('visible');
-    });
-
     document.getElementById('cancelBtn').addEventListener('click', () => {
       document.querySelector('.popup').classList.remove('visible');
     });
@@ -516,6 +505,20 @@
     });
 
     loadSavedCards();
+
+    // Apple Wallet Accordion Scroll Effect
+    const stackContainer = document.querySelector('.card-stack');
+    stackContainer.addEventListener('scroll', () => {
+      if (document.querySelector('.clone-card')) return; // Don't animate background if a card is open
+
+      const scrollY = stackContainer.scrollTop;
+      const cards = document.querySelectorAll('.card-stack .card');
+      
+      cards.forEach((card, index) => {
+        const yOffset = scrollY * (index * 0.08); // Parallax spread effect
+        card.style.transform = `translateY(${yOffset}px)`;
+      });
+    });
 
     // Register Service Worker for offline support
     if ('serviceWorker' in navigator) {
