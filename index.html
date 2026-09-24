@@ -546,15 +546,17 @@
       visibleGap = Math.max(minGap, Math.min(maxGap, visibleGap));
       
       cards.forEach((c, index) => {
-        // Stagger the sticky top so they compress into a nice deck at the top
+        // Sticky boundary: cards will stop here when scrolled up
         c.style.top = `${60 + (index * 4)}px`;
         c.style.position = 'sticky';
         
         if (index < N - 1) {
-          c.style.marginBottom = `${-(cardHeight - visibleGap)}px`;
+          // Cards are mostly visible initially (only 40px overlap)
+          // They will only stack completely when they hit the sticky boundary
+          c.style.marginBottom = '-40px';
         } else {
-          // HUGE margin bottom so you can scroll all the way down until the bottom card hits the top
-          c.style.marginBottom = '85vh';
+          // Normal padding for the last card
+          c.style.marginBottom = '60px';
         }
       });
     }
