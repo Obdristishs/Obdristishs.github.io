@@ -309,14 +309,21 @@
         clone.style.margin = '0';
         clone.style.zIndex = '1000';
         clone.style.opacity = '1';
-        clone.style.transition = 'all 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
-        clone.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
+        clone.style.transition = 'all 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
+        clone.style.boxShadow = '0 10px 40px rgba(0,0,0,0.6)';
         
         document.body.appendChild(clone);
 
-        // Animate other cards out
-        document.querySelectorAll('.card:not(.is-active-original):not(.clone-card)').forEach(c => {
-          c.style.transform = 'translateY(100px)';
+        // Animate other cards out (above fly up, below fly down)
+        let isAbove = true;
+        document.querySelectorAll('.card:not(.clone-card)').forEach(c => {
+          if (c.classList.contains('is-active-original')) {
+            isAbove = false;
+            return;
+          }
+          
+          c.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
+          c.style.transform = isAbove ? 'translateY(-100vh)' : 'translateY(100vh)';
           c.style.opacity = '0';
           c.style.pointerEvents = 'none';
         });
@@ -457,7 +464,7 @@
           original.style.opacity = '1';
           original.classList.remove('is-active-original');
           clone.remove();
-        }, 400); // Wait for transition
+        }, 500); // Wait for transition (500ms)
       }
     });
 
