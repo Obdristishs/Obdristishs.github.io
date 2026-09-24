@@ -288,7 +288,7 @@
         clone.style.margin = '0';
         clone.style.zIndex = '1000';
         clone.style.opacity = '1';
-        clone.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), clip-path 0.5s cubic-bezier(0.32, 0.72, 0, 1), -webkit-clip-path 0.5s cubic-bezier(0.32, 0.72, 0, 1), box-shadow 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
+        clone.style.transition = 'transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1), clip-path 0.7s cubic-bezier(0.2, 0.8, 0.2, 1), -webkit-clip-path 0.7s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.7s cubic-bezier(0.2, 0.8, 0.2, 1)';
         clone.style.boxShadow = '0 10px 40px rgba(0,0,0,0.6)';
         clone.style.aspectRatio = 'auto'; // Override aspect-ratio since we set explicit height
         
@@ -305,7 +305,7 @@
         
         // Phase 2: Apply transition and new transform to move them to the bottom stack
         otherCards.forEach((c, i) => {
-          c.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
+          c.style.transition = 'transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1)';
           const targetY = window.innerHeight - 100 + (i * 12); // Tightly stacked at bottom
           const translateY = targetY - baseTops[i];
           c.style.transform = `translate3d(0, ${translateY}px, 0)`;
@@ -338,7 +338,7 @@
           const allCards = document.querySelectorAll('.card-stack .card:not(.clone-card)');
           allCards.forEach((c, index) => {
             const yOffset = stack.scrollTop * (index * 0.08); // Apple-like accordion spread
-            c.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
+            c.style.transition = 'transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.7s cubic-bezier(0.2, 0.8, 0.2, 1)';
             c.style.transform = `translate3d(0, ${yOffset}px, 0)`;
             c.style.opacity = c.classList.contains('is-active-original') ? '0' : '1';
             c.style.pointerEvents = 'auto';
@@ -354,7 +354,7 @@
             
             // Clear transitions so sticky scroll stays instant
             allCards.forEach(c => c.style.transition = '');
-          }, 500);
+          }, 700);
         });
 
 
