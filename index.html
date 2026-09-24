@@ -421,6 +421,7 @@
               const nfc = document.getElementById('nfcContainer');
               const video = document.getElementById('nfcVideo');
               // src is already set in the click listener (iOS unlock hack)
+              nfc.style.width = `${finalWidth * 0.7}px`;
               nfc.style.top = `${25 + targetHeight + 30}px`;
               nfc.classList.add('visible');
               video.currentTime = 0;
