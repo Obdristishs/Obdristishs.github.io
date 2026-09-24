@@ -181,9 +181,6 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      background: rgba(255, 0, 0, 0.5); /* DEBUG BACKGROUND */
-      border-radius: 12px;
-      min-height: 50px;
     }
 
     .nfc-container.visible {
@@ -193,13 +190,16 @@
     .nfc-container video {
       width: 100%;
       height: auto;
-      border-radius: 12px;
+      mix-blend-mode: screen; /* For black background video */
     }
 
     @media (prefers-color-scheme: light) {
       body {
         background: #F2F2F7;
         color: #000;
+      }
+      .nfc-container video {
+        mix-blend-mode: multiply; /* For white background video */
       }
     }
   </style>
@@ -283,6 +283,15 @@
           document.querySelector('.clone-card').click();
           return;
         }
+
+        // iOS Video Autoplay Hack: unlock the video element during direct user interaction
+        const video = document.getElementById('nfcVideo');
+        const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (!video.src || !video.src.includes(isDark ? 'darkanim' : 'whiteanim')) {
+          video.src = isDark ? 'darkanim.mp4' : 'whiteanim.mp4';
+          video.load();
+        }
+        video.play().then(() => video.pause()).catch(() => {});
 
         const rect = card.getBoundingClientRect();
         
@@ -411,11 +420,10 @@
               
               const nfc = document.getElementById('nfcContainer');
               const video = document.getElementById('nfcVideo');
-              const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-              video.src = isDark ? 'darkanim.mp4' : 'whiteanim.mp4';
-              video.load();
+              // src is already set in the click listener (iOS unlock hack)
               nfc.style.top = `${25 + targetHeight + 30}px`;
               nfc.classList.add('visible');
+              video.currentTime = 0;
               video.play().catch(e => console.error("Video play error:", e));
             }, 600);
           };
