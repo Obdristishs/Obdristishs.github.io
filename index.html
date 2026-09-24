@@ -105,7 +105,7 @@
       border-radius: 16px;
       overflow: hidden;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      margin-bottom: -22%; /* overlap to bring them closer */
+      margin-bottom: -45%; /* overlap to bring them closer */
       transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1);
       cursor: pointer;
     }
@@ -114,6 +114,7 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
+      object-position: top center;
       display: block;
     }
 
@@ -329,9 +330,15 @@
         const finalWidth = targetWidth > targetMaxWidth ? targetMaxWidth : targetWidth;
         const targetLeft = (window.innerWidth - finalWidth) / 2;
         
+        // Calculate natural height for full size display
+        const imgEl = clone.querySelector('img');
+        const imgRatio = imgEl.naturalWidth ? (imgEl.naturalHeight / imgEl.naturalWidth) : (1 / 1.58);
+        const targetHeight = Math.min(finalWidth * imgRatio, window.innerHeight * 0.85);
+
         clone.style.top = '90px';
         clone.style.left = `${targetLeft}px`;
         clone.style.width = `${finalWidth}px`;
+        clone.style.height = `${targetHeight}px`;
         clone.style.transform = 'scale(1.02)';
 
         document.getElementById('done-btn').classList.add('visible');
@@ -431,6 +438,7 @@
         clone.style.top = `${rect.top}px`;
         clone.style.left = `${rect.left}px`;
         clone.style.width = `${rect.width}px`;
+        clone.style.height = `${rect.height}px`;
         clone.style.transform = 'scale(1)';
         clone.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
 
