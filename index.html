@@ -399,7 +399,8 @@
 
         // Face ID logic
         const isWhatsApp = imageSrc.includes('WhatsApp');
-        if (!isLoyalty && !isWhatsApp) {
+        const isCard17 = imageSrc.includes('1(7)');
+        if (!isLoyalty && !isWhatsApp && !isCard17) {
           const overlay = document.getElementById('faceIdOverlay');
           const icon = document.getElementById('faceIdIcon');
           const text = document.getElementById('faceIdText');
