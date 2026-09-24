@@ -24,68 +24,10 @@
       overflow: hidden;
     }
 
-    header {
-      position: fixed;
-      top: 0;
-      width: 100%;
-      padding: 1rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      z-index: 100;
-      background: #000;
-      transition: all 0.3s ease;
-    }
-
-    .title {
-      font-size: 32px;
-      font-weight: 700;
-    }
-
-    .controls {
-      display: flex;
-      gap: 12px;
-    }
-
-    .control-btn {
-      width: 44px;
-      height: 44px;
-      background: rgba(255,255,255,0.9);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-    }
-
-    .control-btn svg {
-      width: 24px;
-      height: 24px;
-      fill: #000;
-    }
-
-    #done-btn {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      z-index: 1001;
-      background: transparent;
-      color: white;
-      border: none;
-      font-size: 18px;
-      font-weight: bold;
-      display: none;
-      cursor: pointer;
-    }
-
-    #done-btn.visible {
-      display: block;
-    }
-
     .card-stack {
-      margin-top: 80px;
+      margin-top: 40px;
       padding: 20px 0 150px 0;
-      height: calc(100vh - 80px);
+      height: calc(100vh - 40px);
       overflow-y: auto;
       scroll-behavior: smooth;
     }
@@ -109,7 +51,6 @@
       border-radius: 16px;
       overflow: hidden;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      margin-bottom: -45%; /* overlap to bring them closer */
       cursor: pointer;
     }
 
@@ -149,10 +90,7 @@
       cursor: pointer;
     }
 
-    .header-hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
+
 
     .loyalty-separator {
       height: 150px;
@@ -221,9 +159,7 @@
   </style>
 </head>
 <body>
-  <header>
-    <h1 class="title">Wallet</h1>
-  </header>
+
 
   <div class="card-stack">
     <div class="section" id="creditSection"></div>
@@ -383,7 +319,7 @@
             c.style.pointerEvents = 'auto';
           });
 
-          document.querySelector('header').classList.remove('header-hidden');
+
           document.querySelector('.card-stack').style.overflow = ''; // Unlock background scroll
 
           // After animation ends, remove clone and show original
@@ -397,7 +333,7 @@
           }, 500); // Wait for transition
         });
 
-        document.querySelector('header').classList.add('header-hidden');
+
 
         // Face ID logic
         const isWhatsApp = imageSrc.includes('WhatsApp');
@@ -516,7 +452,35 @@
       document.querySelector('.popup').classList.remove('visible');
     });
 
+    function updateCardSpacing() {
+      const cards = document.querySelectorAll('.card-stack .card');
+      const N = cards.length;
+      if (N <= 1) return;
+      
+      const containerHeight = window.innerHeight * 0.85; 
+      const cardWidth = Math.min(window.innerWidth * 0.9, 400);
+      const cardHeight = cardWidth / 1.58;
+      
+      let visibleGap = (containerHeight - cardHeight) / (N - 1);
+      
+      const minGap = 35;
+      const maxGap = 80;
+      visibleGap = Math.max(minGap, Math.min(maxGap, visibleGap));
+      
+      const marginBottom = visibleGap - cardHeight;
+      
+      cards.forEach((c, index) => {
+          if (index === N - 1) {
+              c.style.marginBottom = '0px';
+          } else {
+              c.style.marginBottom = `${marginBottom}px`;
+          }
+      });
+    }
+
     loadSavedCards();
+    updateCardSpacing();
+    window.addEventListener('resize', updateCardSpacing);
 
     // Apple Wallet Accordion Scroll Effect
     const stackContainer = document.querySelector('.card-stack');
