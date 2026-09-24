@@ -52,6 +52,8 @@
       overflow: hidden;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
       cursor: pointer;
+      will-change: transform;
+      transform: translateZ(0);
     }
 
     .card img {
@@ -259,14 +261,17 @@
         clone.style.position = 'fixed';
         clone.style.top = '0px';
         clone.style.left = '0px';
-        clone.style.width = `${finalWidth}px`; // Fix width instantly to target width (matches rect.width usually)
-        clone.style.height = `${rect.height}px`; // Start at cropped height
+        clone.style.width = `${finalWidth}px`; 
+        clone.style.height = `${targetHeight}px`; // Fix height instantly to final height to avoid layout thrashing
+        const cropAmount = targetHeight - rect.height;
+        clone.style.clipPath = `inset(0px 0px ${cropAmount}px 0px round 16px)`;
+        clone.style.webkitClipPath = `inset(0px 0px ${cropAmount}px 0px round 16px)`;
         clone.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
-        clone.style.pointerEvents = 'auto'; // Fix: Ensure clone is clickable
+        clone.style.pointerEvents = 'auto';
         clone.style.margin = '0';
         clone.style.zIndex = '1000';
         clone.style.opacity = '1';
-        clone.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), height 0.5s cubic-bezier(0.32, 0.72, 0, 1), box-shadow 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
+        clone.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), clip-path 0.5s cubic-bezier(0.32, 0.72, 0, 1), -webkit-clip-path 0.5s cubic-bezier(0.32, 0.72, 0, 1), box-shadow 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
         clone.style.boxShadow = '0 10px 40px rgba(0,0,0,0.6)';
         
         card.parentNode.insertBefore(clone, card.nextSibling);
@@ -295,7 +300,8 @@
         // Animate to target
         clone.style.zIndex = '1000'; // Jump to front during opening
         clone.style.transform = `translate3d(${targetLeft}px, 90px, 0) scale(1.02)`;
-        clone.style.height = `${targetHeight}px`;
+        clone.style.clipPath = `inset(0px 0px 0px 0px round 16px)`;
+        clone.style.webkitClipPath = `inset(0px 0px 0px 0px round 16px)`;
 
         // Clone click listener to close card
         clone.addEventListener('click', () => {
@@ -306,7 +312,8 @@
           // Animate back to original position
           clone.style.zIndex = ''; // Restore correct z-index so subsequent cards overlap it as they slide up
           clone.style.transform = `translate3d(${origRect.left}px, ${origRect.top}px, 0) scale(1)`;
-          clone.style.height = `${origRect.height}px`;
+          clone.style.clipPath = `inset(0px 0px ${cropAmount}px 0px round 16px)`;
+          clone.style.webkitClipPath = `inset(0px 0px ${cropAmount}px 0px round 16px)`;
           clone.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
 
           // Bring other cards back
