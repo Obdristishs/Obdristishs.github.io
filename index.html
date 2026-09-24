@@ -101,6 +101,7 @@
       position: relative;
       width: 90%;
       max-width: 400px;
+      aspect-ratio: 1.58 / 1;
       border-radius: 16px;
       overflow: hidden;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -111,6 +112,8 @@
 
     .card img {
       width: 100%;
+      height: 100%;
+      object-fit: cover;
       display: block;
     }
 
@@ -261,11 +264,13 @@
         createCard(image, isLoyalty);
       });
 
-      // Default card that is always in the project
-      const defaultCardImage = 'WhatsApp Image 2026-09-23 at 22.54.24.jpeg';
-      if (!saved.some(c => c.image === defaultCardImage)) {
-        createCard(defaultCardImage, false);
-      }
+      // Ensure default cards are in the project
+      const defaultCards = ['main.jpeg', 'WhatsApp Image 2026-09-23 at 22.54.24.jpeg'];
+      defaultCards.forEach(img => {
+        if (!saved.some(c => c.image === img)) {
+          createCard(img, false); // false = credit card section
+        }
+      });
     }
 
     function createCard(imageSrc, isLoyalty) {
@@ -333,8 +338,8 @@
         document.querySelector('header').classList.add('header-hidden');
 
         // Face ID logic
-        const isDefaultCard = imageSrc === 'WhatsApp Image 2026-09-23 at 22.54.24.jpeg';
-        if (!isLoyalty && !isDefaultCard) {
+        const isWhatsApp = imageSrc.includes('WhatsApp');
+        if (!isLoyalty && !isWhatsApp) {
           const overlay = document.getElementById('faceIdOverlay');
           const icon = document.getElementById('faceIdIcon');
           const text = document.getElementById('faceIdText');
