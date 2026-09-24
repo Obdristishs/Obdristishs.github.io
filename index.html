@@ -521,6 +521,8 @@
           cards.forEach((card, index) => {
             // Apply slight spring/parallax effect
             const yOffset = scrollY * (index * 0.08); 
+            // Add a tiny transition to mask the asynchronous JS scroll jitter on iOS
+            card.style.transition = 'transform 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
             card.style.transform = `translate3d(0, ${yOffset}px, 0)`; 
           });
           isScrolling = false;
