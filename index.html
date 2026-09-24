@@ -150,6 +150,67 @@
     .loyalty-separator {
       height: 150px;
     }
+
+    .face-id-overlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(40, 40, 40, 0.85);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border-radius: 18px;
+      width: 140px;
+      height: 140px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .face-id-overlay.visible {
+      opacity: 1;
+    }
+
+    .face-id-icon {
+      width: 60px;
+      height: 60px;
+      background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M7 3h-2a2 2 0 0 0 -2 2v2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M3 17v2a2 2 0 0 0 2 2h2"></path><path d="M21 17v2a2 2 0 0 1 -2 2h-2"></path><path d="M9 10v.01"></path><path d="M15 10v.01"></path><path d="M10 14a2 2 0 1 0 4 0"></path></svg>') no-repeat center center;
+      background-size: contain;
+    }
+
+    .face-id-icon.scanning {
+      animation: scan-pulse 1.5s infinite;
+    }
+
+    .face-id-icon.success {
+      background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" fill="none" stroke="%2334C759" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><polyline points="20 6 9 17 4 12"></polyline></svg>') no-repeat center center;
+      background-size: contain;
+      animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .face-id-text {
+      margin-top: 16px;
+      font-size: 15px;
+      color: white;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    @keyframes scan-pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.4; }
+      100% { opacity: 1; }
+    }
+
+    @keyframes pop-in {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
   </style>
 </head>
 <body>
@@ -174,6 +235,11 @@
     <button id="addCreditBtn">Add Credit/Debit Card</button>
     <button id="addLoyaltyBtn">Add Loyalty Card</button>
     <button id="cancelBtn">Cancel</button>
+  </div>
+
+  <div class="face-id-overlay" id="faceIdOverlay">
+    <div class="face-id-icon scanning" id="faceIdIcon"></div>
+    <div class="face-id-text" id="faceIdText">Face ID</div>
   </div>
 
   <script>
@@ -265,12 +331,91 @@
 
         document.getElementById('done-btn').classList.add('visible');
         document.querySelector('header').classList.add('header-hidden');
+
+        // Face ID logic
+        const isDefaultCard = imageSrc === 'WhatsApp Image 2026-09-23 at 22.54.24.jpeg';
+        if (!isLoyalty && !isDefaultCard) {
+          const overlay = document.getElementById('faceIdOverlay');
+          const icon = document.getElementById('faceIdIcon');
+          const text = document.getElementById('faceIdText');
+          
+          const showSuccess = () => {
+            overlay.classList.add('visible');
+            icon.className = 'face-id-icon success';
+            text.textContent = 'Ready';
+            setTimeout(() => {
+              overlay.classList.remove('visible');
+            }, 1500);
+          };
+
+          const handleCancel = () => {
+            document.getElementById('done-btn').click();
+          };
+
+          if (window.PublicKeyCredential && window.location.protocol !== 'file:') {
+            // Request REAL biometric authentication using WebAuthn (Passkeys)
+            setTimeout(async () => {
+              try {
+                let credentialIdStr = localStorage.getItem('wallet_passkey_id');
+                
+                if (!credentialIdStr) {
+                  // Registration phase (first time)
+                  const credential = await navigator.credentials.create({
+                    publicKey: {
+                      challenge: window.crypto.getRandomValues(new Uint8Array(32)),
+                      rp: { name: "Wallet Clone", id: window.location.hostname || "localhost" },
+                      user: {
+                        id: window.crypto.getRandomValues(new Uint8Array(16)),
+                        name: "wallet_user",
+                        displayName: "Wallet Card"
+                      },
+                      pubKeyCredParams: [{alg: -7, type: "public-key"}],
+                      authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+                      timeout: 60000,
+                      attestation: "none"
+                    }
+                  });
+                  const credentialIdArray = Array.from(new Uint8Array(credential.rawId));
+                  localStorage.setItem('wallet_passkey_id', JSON.stringify(credentialIdArray));
+                  credentialIdStr = JSON.stringify(credentialIdArray);
+                }
+
+                // Authentication phase (every time)
+                const credentialId = new Uint8Array(JSON.parse(credentialIdStr));
+                await navigator.credentials.get({
+                  publicKey: {
+                    challenge: window.crypto.getRandomValues(new Uint8Array(32)),
+                    allowCredentials: [{ type: "public-key", id: credentialId, transports: ["internal"] }],
+                    userVerification: "required",
+                    timeout: 60000
+                  }
+                });
+
+                showSuccess();
+              } catch (err) {
+                console.log("Biometric failed or canceled:", err);
+                handleCancel(); // Close card if failed
+              }
+            }, 400); // Wait for card animation to finish
+          } else {
+            // Fallback (for local file testing)
+            icon.className = 'face-id-icon scanning';
+            text.textContent = 'Face ID';
+            setTimeout(() => {
+              overlay.classList.add('visible');
+              setTimeout(() => {
+                showSuccess();
+              }, 1200);
+            }, 400);
+          }
+        }
       });
 
       saveCards();
     }
 
     document.getElementById('done-btn').addEventListener('click', () => {
+      document.getElementById('faceIdOverlay').classList.remove('visible');
       const clone = document.querySelector('.clone-card');
       const original = document.querySelector('.is-active-original');
       
