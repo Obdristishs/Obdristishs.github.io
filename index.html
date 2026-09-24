@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -12,55 +12,41 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #000; color: white; font-family: -apple-system, BlinkMacSystemFont, sans-serif; height: 100vh; overflow: hidden; }
-    header { position: fixed; top: 0; width: 100%; padding: 1rem; display: flex; justify-content: space-between; align-items: center; z-index: 100; background: #000; transition: all 0.3s ease; }
+    header { position: fixed; top: 0; width: 100%; padding: 1rem; display: flex; justify-content: space-between; align-items: center; z-index: 100; background: transparent; transition: opacity 0.3s ease; }
+    .header-hidden { opacity: 0; pointer-events: none; }
+    
     .title { font-size: 32px; font-weight: 700; }
     .controls { display: flex; gap: 12px; }
     .control-btn { width: 44px; height: 44px; background: rgba(255,255,255,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .control-btn svg { width: 24px; height: 24px; fill: #000; }
     
     .card-stack {
-      margin-top: 80px;
-      padding: 20px 0 120px 0;
+      position: relative;
+      margin: 80px auto 0;
+      width: 90%;
+      max-width: 400px;
       height: calc(100vh - 80px);
       overflow-y: auto;
       overflow-x: hidden;
       scroll-behavior: smooth;
-      transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-    }
-    .card-stack.pushed-down {
-      transform: translateY(calc(100vh - 200px));
-      overflow: hidden;
-    }
-
-    .section { display: flex; flex-direction: column; align-items: center; gap: 0; }
-
-    .card {
-      position: relative;
-      width: 90%;
-      max-width: 400px;
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.5); /* Apple wallet casts shadow upwards onto previous card */
-      margin-bottom: -72%; 
-      transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), 
-                  margin-bottom 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
-                  top 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
-                  left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-      will-change: transform, margin-bottom, top, left;
-      transform: translateZ(0); 
-      cursor: pointer;
     }
     
-    /* Make the bottom stack cards even closer */
-    .card-stack.pushed-down .card {
-      margin-bottom: -90%;
+    .stack-spacer {
+      width: 100%;
+      pointer-events: none;
     }
 
-    .card img { width: 100%; display: block; pointer-events: none; }
-    .card.active { position: fixed; z-index: 1000; }
+    .card {
+      position: absolute;
+      top: 0; left: 0; width: 100%;
+      border-radius: 16px;
+      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.5); /* Apple Wallet casts shadow upwards */
+      transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+      will-change: transform;
+      cursor: pointer;
+    }
 
-    .header-hidden { opacity: 0; pointer-events: none; }
-    .loyalty-separator { height: 100px; } /* Give some space between credit and loyalty */
+    .card img { width: 100%; display: block; pointer-events: none; border-radius: 16px; }
 
     /* Face ID and Reader UI */
     .reader-ui { position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%); z-index: 1001; text-align: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
@@ -85,7 +71,7 @@
   </style>
 </head>
 <body>
-  <header>
+  <header id="header">
     <h1 class="title">Wallet</h1>
     <div class="controls">
       <div class="control-btn" id="addBtn">
@@ -95,9 +81,7 @@
   </header>
 
   <div class="card-stack" id="cardStack">
-    <div class="section" id="creditSection"></div>
-    <div class="loyalty-separator"></div>
-    <div class="section" id="loyaltySection"></div>
+    <div class="stack-spacer" id="stackSpacer"></div>
   </div>
 
   <div class="reader-ui" id="readerUi">
@@ -125,40 +109,90 @@
 
   <script>
     const STORAGE_KEY = 'walletCards';
-    let creditCards = [];
-    let loyaltyCards = [];
+    let allCards = [];
+    let savedData = [];
     let readerTimeout;
+    const cardStack = document.getElementById('cardStack');
+    const stackSpacer = document.getElementById('stackSpacer');
 
     function saveCards() {
-      const data = [
-        ...creditCards.map(c => ({ image: c.image, isLoyalty: false })),
-        ...loyaltyCards.map(c => ({ image: c.image, isLoyalty: true }))
-      ];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      // Rebuild savedData from allCards to maintain order
+      savedData = allCards.map(c => ({ 
+        image: c.dataset.image, 
+        isLoyalty: c.dataset.type === 'loyalty' 
+      }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData));
     }
 
     function loadSavedCards() {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-      saved.forEach(({ image, isLoyalty }) => {
-        createCard(image, isLoyalty);
-      });
-
-      // Ensure default card is ALWAYS the main (last added to credit section = front of stack)
       const defaultCardImage = 'WhatsApp Image 2026-09-23 at 22.54.24.jpeg';
-      let hasDefault = saved.some(c => c.image === defaultCardImage);
       
-      // We can also remove it and re-add it so it's always at the front!
-      // But for now, if it's not there, we add it.
-      if (!hasDefault) {
-        createCard(defaultCardImage, false);
-      } else {
-        // If it exists, let's move it to the front by removing its DOM element and re-appending it
-        const allCards = document.querySelectorAll('.card');
+      allCards = [];
+      cardStack.innerHTML = '';
+      cardStack.appendChild(stackSpacer);
+      
+      // Load all cards except the default one
+      saved.forEach(({ image, isLoyalty }) => {
+        if (image !== defaultCardImage) {
+          createCard(image, isLoyalty, false);
+        }
+      });
+      
+      // ALWAYS create default card last so it becomes the main/front card
+      createCard(defaultCardImage, false, false);
+      
+      saveCards();
+    }
+
+    function layoutCards() {
+      const activeCard = allCards.find(c => c.classList.contains('active'));
+      
+      if (activeCard) {
+        // Active mode
+        cardStack.style.overflowY = 'hidden';
+        const scrollTop = cardStack.scrollTop;
+        const inactiveCards = allCards.filter(c => c !== activeCard);
+        
+        // Base coordinate for the stacked cards at the bottom
+        const bottomBaseY = scrollTop + cardStack.clientHeight - 80;
+        
         allCards.forEach(c => {
-           if(c.dataset.image === defaultCardImage) {
-              document.getElementById('creditSection').appendChild(c);
-           }
+          if (c === activeCard) {
+            c.style.zIndex = 1000;
+            // Move up to view top
+            c.style.transform = `translateY(${scrollTop - 10}px) scale(1.05)`;
+          } else {
+            const j = inactiveCards.indexOf(c);
+            c.style.zIndex = j;
+            c.style.transform = `translateY(${bottomBaseY + j * 12}px) scale(0.95)`;
+          }
         });
+      } else {
+        // Normal mode
+        cardStack.style.overflowY = 'auto';
+        let currentY = 0;
+        
+        const credits = allCards.filter(c => c.dataset.type === 'credit');
+        const loyalties = allCards.filter(c => c.dataset.type === 'loyalty');
+        
+        credits.forEach((c, i) => {
+          c.style.zIndex = i;
+          c.style.transform = `translateY(${currentY}px) scale(1)`;
+          currentY += 55; // 55px peek
+        });
+        
+        if (loyalties.length > 0) currentY += 50; // separator
+        
+        loyalties.forEach((c, i) => {
+          c.style.zIndex = credits.length + i;
+          c.style.transform = `translateY(${currentY}px) scale(1)`;
+          currentY += 55;
+        });
+        
+        // Update spacer height for scrolling
+        const cardHeight = allCards[0] ? allCards[0].offsetHeight : 240;
+        stackSpacer.style.height = (currentY + cardHeight + 40) + 'px';
       }
     }
 
@@ -183,108 +217,50 @@
       document.getElementById('readerUi').classList.remove('visible');
     }
 
-    function closeActiveCard() {
-      const card = document.querySelector('.card.active');
-      if (!card) return;
-
-      hideReaderUI();
-
-      const placeholder = card._placeholder;
-      if (!placeholder) return;
-      const rect = placeholder.getBoundingClientRect();
-
-      card.style.top = rect.top + 'px';
-      card.style.left = rect.left + 'px';
-      card.style.transform = 'translateZ(0)'; // scale back
-
-      document.getElementById('cardStack').classList.remove('pushed-down');
-      document.querySelector('header').classList.remove('header-hidden');
-
-      setTimeout(() => {
-        if (card.classList.contains('active')) {
-            placeholder.parentNode.insertBefore(card, placeholder);
-            placeholder.remove();
-            delete card._placeholder;
-            card.classList.remove('active');
-            card.style = ''; // remove inline styles
-        }
-      }, 400);
-    }
-
-    function createCard(imageSrc, isLoyalty) {
+    function createCard(imageSrc, isLoyalty, doSave = true) {
       const card = document.createElement('div');
       card.className = 'card';
-      card.dataset.image = imageSrc;
       card.dataset.type = isLoyalty ? 'loyalty' : 'credit';
+      card.dataset.image = imageSrc;
       
       const img = document.createElement('img');
       img.src = imageSrc;
+      img.onload = () => layoutCards();
       card.appendChild(img);
-
-      const section = isLoyalty ? document.getElementById('loyaltySection') : document.getElementById('creditSection');
-      section.appendChild(card);
-
-      const data = { element: card, image: imageSrc };
-      (isLoyalty ? loyaltyCards : creditCards).push(data);
-
+      
       card.addEventListener('click', (e) => {
-        // If this card is already active, close it
         if (card.classList.contains('active')) {
-          closeActiveCard();
-          return;
+          card.classList.remove('active');
+          hideReaderUI();
+          document.getElementById('header').classList.remove('header-hidden');
+        } else {
+          const existing = allCards.find(c => c.classList.contains('active'));
+          if (existing) {
+            existing.classList.remove('active');
+            hideReaderUI();
+            document.getElementById('header').classList.remove('header-hidden');
+            layoutCards();
+            e.stopPropagation();
+            return;
+          }
+          
+          card.classList.add('active');
+          document.getElementById('header').classList.add('header-hidden');
+          if (card.dataset.type === 'credit') showReaderUI();
         }
-
-        // If another card is active, and the stack is pushed down, clicks on inactive cards should close the active card
-        if (document.getElementById('cardStack').classList.contains('pushed-down')) {
-          closeActiveCard();
-          e.stopPropagation();
-          return;
-        }
-
-        // Make active
-        const rect = card.getBoundingClientRect();
-        
-        // Create placeholder
-        const placeholder = document.createElement('div');
-        placeholder.className = 'card-placeholder';
-        placeholder.style.height = card.offsetHeight + 'px';
-        placeholder.style.marginBottom = '-72%';
-        placeholder.style.visibility = 'hidden';
-        card.parentNode.insertBefore(placeholder, card);
-        card._placeholder = placeholder;
-
-        // Move to body to avoid transform clipping
-        document.body.appendChild(card);
-        card.classList.add('active');
-        
-        // Initial fixed position
-        card.style.top = rect.top + 'px';
-        card.style.left = rect.left + 'px';
-        card.style.margin = '0';
-        card.style.width = rect.width + 'px';
-
-        card.offsetHeight; // Force reflow
-
-        // Animate
-        card.style.top = '70px';
-        card.style.left = '50%';
-        card.style.transform = 'translateX(-50%) scale(1.02)';
-
-        document.getElementById('cardStack').classList.add('pushed-down');
-        document.querySelector('header').classList.add('header-hidden');
-
-        if (!isLoyalty) {
-          showReaderUI();
-        }
+        layoutCards();
       });
-
-      saveCards();
+      
+      cardStack.appendChild(card);
+      allCards.push(card);
+      
+      if (doSave) saveCards();
+      layoutCards();
     }
 
     document.getElementById('addBtn').addEventListener('click', () => {
       document.querySelector('.popup').classList.add('visible');
     });
-
     document.getElementById('cancelBtn').addEventListener('click', () => {
       document.querySelector('.popup').classList.remove('visible');
     });
@@ -306,6 +282,8 @@
 
     setupFileInput('addCreditBtn', false);
     setupFileInput('addLoyaltyBtn', true);
+
+    window.addEventListener('resize', layoutCards);
 
     loadSavedCards();
 
