@@ -101,36 +101,95 @@
       position: relative;
       width: 90%;
       max-width: 400px;
+      aspect-ratio: 1.586; /* Standard credit card ratio */
       border-radius: 16px;
       overflow: hidden;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
       margin-bottom: -22%; /* overlap to bring them closer */
-      transition: transform 0.3s ease, opacity 0.3s ease;
+      transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s ease;
+      will-change: transform, opacity;
+      transform: translateZ(0); /* Hardware acceleration */
       cursor: pointer;
     }
 
     .card img {
       width: 100%;
+      height: 100%;
+      object-fit: cover;
       display: block;
+      pointer-events: none; /* Prevent image drag interfering with clicks */
+    }
+
+    .face-id-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      backdrop-filter: blur(5px);
+    }
+
+    .face-id-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .face-id-box {
+      background: rgba(40, 40, 40, 0.85);
+      padding: 30px;
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      width: 180px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .face-id-icon {
+      width: 48px;
+      height: 48px;
+      animation: pulse 1.5s infinite;
+    }
+
+    .face-id-icon.success {
+      animation: none;
+    }
+
+    .face-id-text {
+      font-size: 16px;
+      font-weight: 500;
+      color: white;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.5; transform: scale(0.95); }
+      50% { opacity: 1; transform: scale(1.05); }
+      100% { opacity: 0.5; transform: scale(0.95); }
     }
 
     .card.active {
       position: fixed;
       top: 90px;
       left: 50%;
-      transform: translate(-50%, 0) scale(1.02);
       z-index: 1000;
-      width: 90%;
-      max-width: 95%;
-      animation: rise 0.3s ease-out forwards;
+      /* Remove width/max-width changes to prevent layout thrashing */
+      animation: rise 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
     }
 
     @keyframes rise {
       from {
-        transform: translate(-50%, 100%) scale(1);
+        transform: translate(-50%, 30px) scale(0.95);
+        opacity: 0.5;
       }
       to {
-        transform: translate(-50%, 0) scale(1.02);
+        transform: translate(-50%, 0) scale(1.05);
+        opacity: 1;
       }
     }
 
@@ -196,6 +255,15 @@
     <button id="cancelBtn">Cancel</button>
   </div>
 
+  <div class="face-id-overlay" id="faceIdOverlay">
+    <div class="face-id-box">
+      <svg class="face-id-icon" id="faceIdSvg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
+        <path d="M7 3H5a2 2 0 0 0-2 2v2M17 3h2a2 2 0 0 1 2 2v2M3 17v2a2 2 0 0 0 2 2h2M21 17v2a2 2 0 0 1-2 2h-2M9 9h.01M15 9h.01M9 15s1.5 2 3 2 3-2 3-2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="face-id-text" id="faceIdText">Face ID</div>
+    </div>
+  </div>
+
   <script>
     const STORAGE_KEY = 'walletCards';
     let creditCards = [];
@@ -210,16 +278,24 @@
     }
 
     function loadSavedCards() {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      let saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      const defaultCardImage = 'WhatsApp Image 2026-09-23 at 22.54.24.jpeg';
+      
+      // Ensure default card exists
+      if (!saved.some(c => c.image === defaultCardImage)) {
+        saved.push({ image: defaultCardImage, isLoyalty: false });
+      }
+
+      // Sort so the default card is always the last in the array (renders at the front of the stack)
+      saved.sort((a, b) => {
+        if (a.image === defaultCardImage) return 1;
+        if (b.image === defaultCardImage) return -1;
+        return 0;
+      });
+
       saved.forEach(({ image, isLoyalty }) => {
         createCard(image, isLoyalty);
       });
-
-      // Default card that is always in the project
-      const defaultCardImage = 'WhatsApp Image 2026-09-23 at 22.54.24.jpeg';
-      if (!saved.some(c => c.image === defaultCardImage)) {
-        createCard(defaultCardImage, false);
-      }
     }
 
     function createCard(imageSrc, isLoyalty) {
@@ -236,23 +312,46 @@
       (isLoyalty ? loyaltyCards : creditCards).push(data);
 
       card.addEventListener('click', () => {
-        card.classList.add('active');
-        document.getElementById('done-btn').classList.add('visible');
-        document.querySelectorAll('.card:not(.active)').forEach(c => {
-          c.style.opacity = '0';
-          c.style.pointerEvents = 'none';
-        });
-        document.querySelector('header').classList.add('header-hidden');
+        if (card.classList.contains('active')) {
+          closeActiveCard();
+          return;
+        }
+
+        openCard(card);
+        if (!isLoyalty) {
+          simulateFaceID();
+        }
       });
 
       saveCards();
     }
 
-    document.getElementById('done-btn').addEventListener('click', () => {
+    function openCard(card) {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'card-placeholder';
+      placeholder.style.height = card.offsetHeight + 'px';
+      placeholder.style.marginBottom = '-22%';
+      placeholder.style.visibility = 'hidden';
+      card.parentNode.insertBefore(placeholder, card);
+      card._placeholder = placeholder;
+
+      card.classList.add('active');
+      document.getElementById('done-btn').classList.add('visible');
+      document.querySelectorAll('.card:not(.active)').forEach(c => {
+        c.style.opacity = '0';
+        c.style.pointerEvents = 'none';
+      });
+      document.querySelector('header').classList.add('header-hidden');
+    }
+
+    function closeActiveCard() {
       const active = document.querySelector('.card.active');
       if (active) {
+        if (active._placeholder) {
+          active._placeholder.remove();
+          delete active._placeholder;
+        }
         active.classList.remove('active');
-        active.style.opacity = '1';
         document.querySelectorAll('.card').forEach(c => {
           c.style.opacity = '1';
           c.style.pointerEvents = 'auto';
@@ -260,7 +359,29 @@
         document.querySelector('header').classList.remove('header-hidden');
         document.getElementById('done-btn').classList.remove('visible');
       }
-    });
+    }
+
+    function simulateFaceID() {
+      const overlay = document.getElementById('faceIdOverlay');
+      const text = document.getElementById('faceIdText');
+      const svg = document.getElementById('faceIdSvg');
+      
+      overlay.classList.add('visible');
+      text.innerText = 'Распознавание лица...';
+      svg.classList.remove('success');
+      svg.innerHTML = '<path d="M7 3H5a2 2 0 0 0-2 2v2M17 3h2a2 2 0 0 1 2 2v2M3 17v2a2 2 0 0 0 2 2h2M21 17v2a2 2 0 0 1-2 2h-2M9 9h.01M15 9h.01M9 15s1.5 2 3 2 3-2 3-2" stroke-linecap="round" stroke-linejoin="round"/>';
+
+      setTimeout(() => {
+        text.innerText = 'Успешно';
+        svg.classList.add('success');
+        svg.innerHTML = '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke-linecap="round" stroke-linejoin="round"/><polyline points="22 4 12 14.01 9 11.01" stroke-linecap="round" stroke-linejoin="round"/>';
+        setTimeout(() => {
+          overlay.classList.remove('visible');
+        }, 800);
+      }, 1200);
+    }
+
+    document.getElementById('done-btn').addEventListener('click', closeActiveCard);
 
     document.getElementById('addBtn').addEventListener('click', () => {
       document.querySelector('.popup').classList.add('visible');
